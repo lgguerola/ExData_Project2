@@ -11,18 +11,30 @@ library("ggplot2")
 NEI <- readRDS("~/../ExData_Project2/summarySCC_PM25.rds")
 SCC <- readRDS("~/../ExData_Project2/Source_Classification_Code.rds")
 
-data<-transform(NEI,type=factor(type),year=factor(year))
-twocity<-data[data$fips=="24510"|data$fips=="06037",]
-vehicles<-as.data.frame(SCC[grep("vehicles",SCC$SCC.Level.Two,ignore.case=T),1])
-names(vehicles)<-"SCC"
-data2<-merge(vehicles,twocity,by="SCC")
-data2$city[data2$fips=="24510"]<-"Baltimore"
-data2$city[data2$fips=="06037"]<-"LA"
+# Gather the subset of the NEI data which corresponds to vehicles
+vehicles <- grepl("vehicle", SCC$SCC.Level.Two, ignore.case=TRUE)
+vehiclesSCC <- SCC[vehicles,]$SCC
+vehiclesNEI <- NEI[NEI$SCC %in% vehiclesSCC,]
 
-#Plot Data
-plotdata<-ddply(data2,.(year,city),summarize,sum=sum(Emissions))
-png("~/../plot6.png")
-gplot<-ggplot(plotdata,aes(year,sum))
-gplot+geom_point(aes(color=city),size=4)+labs(title="PM2.5 Emission from motor vehicle sources",
-                                              y="total PM2.5 emission each year")
+# Subset the vehicles NEI data by each city's fip and add city name.
+vehiclesBaltimoreNEI <- vehiclesNEI[vehiclesNEI$fips=="24510",]
+vehiclesBaltimoreNEI$city <- "Baltimore City"
+
+vehiclesLANEI <- vehiclesNEI[vehiclesNEI$fips=="06037",]
+vehiclesLANEI$city <- "Los Angeles County"
+
+# Combine the two subsets with city name into one data frame
+bothNEI <- rbind(vehiclesBaltimoreNEI,vehiclesLANEI)
+
+png("plot6.png",width=480,height=480,units="px")
+
+ggp <- ggplot(bothNEI, aes(x=factor(year), y=Emissions, fill=city)) +
+    geom_bar(aes(fill=year),stat="identity") +
+    facet_grid(scales="free", space="free", .~city) +
+    guides(fill=FALSE) + theme_bw() +
+    labs(x="year", y=expression("Total PM"[2.5]*" Emission (Kilo-Tons)")) + 
+    labs(title=expression("PM"[2.5]*" Motor Vehicle Source Emissions in Baltimore & LA, 1999-2008"))
+
+print(ggp)
+
 dev.off()

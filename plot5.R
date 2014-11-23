@@ -14,15 +14,22 @@ setwd("C:/Users/lgarcia/ExData_Project2")
 NEI <- readRDS("~/../ExData_Project2/summarySCC_PM25.rds")
 SCC <- readRDS("~/../ExData_Project2/Source_Classification_Code.rds")
 
-data<-transform(NEI,type=factor(type),year=factor(year))
-data2<-data[data$fips=="24510",]
-vehicles<-as.data.frame(SCC[grep("vehicles",SCC$SCC.Level.Two,ignore.case=T),1])
-names(vehicles)<-"SCC"
-data3<-merge(vehicles,data2,by="SCC")
+# Gather the subset of the NEI data which corresponds to vehicles
+vehicles <- grepl("vehicle", SCC$SCC.Level.Two, ignore.case=TRUE)
+vehiclesSCC <- SCC[vehicles,]$SCC
+vehiclesNEI <- NEI[NEI$SCC %in% vehiclesSCC,]
 
-#Plot Data
-plotdata<-ddply(data3,.(year),summarize,sum=sum(Emissions))
-png("plot5.png") 
-gplot<-ggplot(plotdata,aes(year,sum))
-gplot+geom_point(size=4)+labs(title="PM2.5 Emission from motor vehicle sources in Baltimore City", y="Total PM2.5 emission each year")
+# Subset the vehicles NEI data to Baltimore's fip
+baltimoreVehiclesNEI <- vehiclesNEI[vehiclesNEI$fips=="24510",]
+
+png("plot5.png",width=480,height=480,units="px")
+
+ggp <- ggplot(baltimoreVehiclesNEI,aes(factor(year),Emissions)) +
+    geom_bar(stat="identity",fill="grey",width=0.75) +
+    theme_bw() +  guides(fill=FALSE) +
+    labs(x="year", y=expression("Total PM"[2.5]*" Emission (10^5 Tons)")) + 
+    labs(title=expression("PM"[2.5]*" Motor Vehicle Source Emissions in Baltimore from 1999-2008"))
+
+print(ggp)
+
 dev.off()
